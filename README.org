@@ -1,0 +1,38 @@
+* Description
+This is a linker script for Pipewire/Wireplumber that automatically unlinks other streams and clears the passthrough-capable output for your passthrough stream. If a device called "null_sink" (read more below) exists, it will reroute existing streams to that output so they will continue playing in the background.
+
+This is trying to replicate the behavior I got out of my hardware-mixing-capable X-Fi sound card for over a decade. There is a [[https://gitlab.freedesktop.org/pipewire/wireplumber/-/issues/515][feature request]] where functionality like this is discussed on the Wireplumber repo, but with the flexibility of Wireplumber's Lua-scripting I see no reason why this needs to be a part of the base distribution of Pipewire/Wireplumber.
+
+* Installation
+Put the ~clear_for_passthrough.lua~ script somewhere in your =<datadir>/scripts= directory. For most people this will bei either =/usr/share/wireplumber/scripts= or =~/.local/share/wireplumber/scripts=.
+
+Pipewire needs to be restarted for this to take effect. On Gentoo you can run
+#+begin_src bash
+  gentoo-pipewire-launcher restart &
+#+end_src
+
+On other distributions you will want to restart the pipewire systemd user service.
+
+* Pipewire Configuration
+The sink needs to be configured to enable passthrough and with the codecs the connected amplifier supports. This can be done in most GUIs like plasma-pa or pavucontrol. For more Info on how to get passthrough to work see [[https://gitlab.freedesktop.org/pipewire/pipewire/-/wikis/Guide-IEC958][here]].
+
+* Relink to Null Sink
+Normally streams will stop playing as soon as they are detached from their only viable output, which makes them stop playing. Or if there are other viable outputs they might get relinked to those which may also be undesireable.
+
+For that reason, and to entirely replicate the behavior I previously got from my X-Fi card, the script has functionality to relink the streams to a null sink output if it exists.
+
+To get that bevior add this to your pipewire config (For example in a =~/.config/pipewire/null_sink.conf=):
+#+begin_src lua
+  context.objects = [
+      {   factory = adapter
+          args = {
+              factory.name     = support.null-audio-sink
+              node.name        = "null_sink"
+              media.class      = Audio/Sink
+              audio.position   = [ FL FR ]
+          }
+      }
+  ]
+#+end_src
+
+After the passthrough stream is gone the streams should revert to the proper output on their own.
